@@ -1,33 +1,47 @@
 import { StorableEvent } from './interfaces/storable-event';
 import * as eventstore from 'eventstore';
-import * as url from 'url';
+import { IEvent } from '@nestjs/cqrs';
+
+export interface EventStoreInterface {
+  getFromSnapshot: (query, revMax, callback?) => void;
+  getEvents: (query, skip?, limit?, callback?) => void;
+  getEventStream: (query, revMin?, revMax?, callback?) => void;
+}
+
+interface NodeEventStoreInterface extends EventStoreInterface {
+  init: (callback) => void;
+}
+
+export interface EventStoreOptions {
+  storeImpl?: EventStoreInterface;
+  options?: {};
+}
 
 export class EventStore {
-  private readonly eventstore;
+  private readonly eventstore: EventStoreInterface | NodeEventStoreInterface;
   private eventStoreLaunched = false;
 
-  constructor(mongoURL: string) {
-    let ssl = false;
+  constructor(private options: EventStoreOptions) {
+    this.options = this.options || {};
 
-    const parsed = url.parse(mongoURL, true);
-
-    if (parsed.query && parsed.query.ssl !== undefined && parsed.query.ssl === 'true') {
-      ssl = true;
+    // If custom event store implementation provided, assume it is already launched
+    if (this.options.storeImpl) {
+      this.eventstore = this.options.storeImpl;
+      this.eventStoreLaunched = true;
+      return;
     }
 
-    this.eventstore = eventstore({
-      type: 'mongodb',
-      url: mongoURL,
-      options: {
-        ssl: ssl,
-      },
-    });
-    this.eventstore.init(err => {
+    this.eventstore = eventstore(this.options);
+    this.getNodeEventStore().init(err => {
       if (err) {
         throw err;
       }
       this.eventStoreLaunched = true;
     });
+  }
+
+  private getNodeEventStore(): NodeEventStoreInterface {
+    return this.eventstore as NodeEventStoreInterface;
   }
 
   public isInitiated(): boolean {
@@ -65,7 +79,9 @@ export class EventStore {
     });
   }
 
-  public async storeEvent<T extends StorableEvent>(event: T): Promise<void> {
+  public async storeEvent<T extends IEvent>(event: T): Promise<void> {
+    if (!StorableEvent.isStorableEvent(event)) return;
+    const storableEvent = event as any as StorableEvent;
     return new Promise<void>((resolve, reject) => {
       if (!this.eventStoreLaunched) {
         reject('Event Store not launched!');
@@ -73,8 +89,8 @@ export class EventStore {
       }
       this.eventstore.getEventStream(
         {
-          aggregateId: this.getAgrregateId(event.eventAggregate, event.id),
-          aggregate: event.eventAggregate,
+          aggregateId: this.getAgrregateId(storableEvent.eventAggregate, storableEvent.id),
+          aggregate: storableEvent.eventAggregate,
         },
         (err, stream) => {
           if (err) {

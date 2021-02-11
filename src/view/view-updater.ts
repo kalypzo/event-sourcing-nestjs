@@ -3,6 +3,7 @@ import { IViewUpdater } from './interfaces/view-updater';
 import { IEvent } from '@nestjs/cqrs';
 import { ModuleRef } from '@nestjs/core';
 import { ViewUpdaters } from './view-updaters';
+import { StorableEvent } from '../interfaces/storable-event';
 
 @Injectable()
 export class ViewUpdater {
@@ -15,13 +16,24 @@ export class ViewUpdater {
     }
 
     async run<T extends IEvent>(event: T): Promise<void> {
-        const updater = ViewUpdaters.get(event.constructor.name);
+        if (!StorableEvent.isStorableEvent(event)) return;
+        const storableEvent = (event as any) as StorableEvent;
+        const updater = ViewUpdaters.get(storableEvent.eventName);
         if (updater) {
             if (!this.instances.has(updater)) {
-                this.instances.set(updater, this.moduleRef.get(updater.name, { strict: false }));
+                const updaterRef = this.getUpdater(updater.name);
+                this.instances.set(updater, updaterRef);
             }
-            await this.instances.get(updater).handle(event);
+            await this.instances.get(updater)?.handle(event);
         }
         return;
+    }
+
+    private getUpdater(name: string): IViewUpdater<StorableEvent> {
+        try {
+            return this.moduleRef.get(name, { strict: false });
+        } catch (err) {
+            return null;
+        }
     }
 }

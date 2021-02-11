@@ -1,3 +1,5 @@
+import { EventStoreOptions } from "../eventstore";
+
 export interface EventSourcingOptions {
-    mongoURL: string;
+    eventStore: EventStoreOptions;
 }

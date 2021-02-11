@@ -7,6 +7,13 @@ export abstract class StorableEvent implements IEvent {
     eventName: string;
 
     constructor() {
-        this.eventName = this.constructor.name;
+        this.eventName = this.eventName || this.constructor.name;
+    }
+
+    static isStorableEvent(event: IEvent): boolean {
+        const storableEvent = event as any;
+        return storableEvent.id &&
+          storableEvent.eventAggregate &&
+          storableEvent.eventVersion;
     }
 }

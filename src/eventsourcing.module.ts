@@ -12,7 +12,7 @@ export class EventSourcingModule {
       providers: [
         {
           provide: EventStore,
-          useValue: new EventStore(options.mongoURL),
+          useValue: new EventStore(options.eventStore),
         },
       ],
       exports: [EventStore],

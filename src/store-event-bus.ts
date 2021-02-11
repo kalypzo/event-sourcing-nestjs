@@ -12,16 +12,8 @@ export class StoreEventBus implements IEventBus {
   ) {}
 
   publish<T extends IEvent>(event: T): void {
-    const storableEvent = (event as any) as StorableEvent;
-    if (
-      storableEvent.id === undefined ||
-      storableEvent.eventAggregate === undefined ||
-      storableEvent.eventVersion === undefined
-    ) {
-      throw new Error('Events must implement StorableEvent interface');
-    }
     this.eventStore
-      .storeEvent(storableEvent)
+      .storeEvent(event)
       .then(() => this.eventBus.publish(event))
       .catch(err => {
         throw err;

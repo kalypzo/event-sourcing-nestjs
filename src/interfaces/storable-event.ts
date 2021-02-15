@@ -12,8 +12,8 @@ export abstract class StorableEvent implements IEvent {
 
     static isStorableEvent(event: IEvent): boolean {
         const storableEvent = event as any;
-        return storableEvent.id &&
-          storableEvent.eventAggregate &&
-          storableEvent.eventVersion;
+        return this.isPrototypeOf(event) || storableEvent.id &&
+            storableEvent.eventAggregate &&
+            storableEvent.eventVersion;
     }
 }

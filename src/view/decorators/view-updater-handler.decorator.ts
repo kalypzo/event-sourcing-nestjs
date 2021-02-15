@@ -1,9 +1,12 @@
 import { ViewUpdaters } from '../view-updaters';
 import { IEvent } from '@nestjs/cqrs';
 import { Type } from '@nestjs/common';
+import { StorableEvent } from '../../interfaces';
 
-export function ViewUpdaterHandler(event: Type<IEvent>) {
+export function ViewUpdaterHandler(event: Type<IEvent>, eventName?: string) {
     return (target: any) => {
-        ViewUpdaters.add(event.name, target);
+        if (StorableEvent.isStorableEvent(event)) {
+            ViewUpdaters.add(eventName || event.constructor.name, target);
+        }
     };
 }
